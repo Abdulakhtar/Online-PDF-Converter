@@ -1,0 +1,98 @@
+﻿@{
+    ViewData["Title"] = "PDF Converter";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<form asp-controller="PdfConverter" asp-action="ConvertToPdf" method="post" enctype="multipart/form-data">
+    <div class="jumbotron mb-5">
+        <div class="row justify-content-center">
+            <div class="col-auto">
+                <div id="elapsed-time-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="file">Choose a Word document:</label>
+        <input type="file" name="file" id="file" accept=".docx, .doc" class="form-control" required />
+        <small id="error-message" class="form-text text-danger"></small>
+    </div>
+    <button type="submit" id="convert-to-pdf-button" class="btn btn-primary mt-2">Convert to PDF</button>
+</form>
+
+<div id="pdf-container" style="height: 800px; overflow-y: scroll; margin-top: 30px; border:1px solid black;">
+    <!-- PDF content will be displayed here -->
+</div>
+
+@section Scripts {
+    <script>
+        var intervalId;
+
+        //Ajax Call
+        $('#convert-to-pdf-button').on('click', function (e) {
+            e.preventDefault();
+
+            //  Validate/Check
+            if ($('#file')[0].files.length === 0) {
+                $('#file').css('border-color', 'red');
+                $('#error-message').text('Please choose a Word document before converting.');
+                return;
+            } else {
+                $('#file').css('border-color', '');
+                $('#error-message').text('');
+            }
+
+            var formData = new FormData($('form')[0]);
+
+            $.ajax({
+                url: '/PdfConverter/ConvertToPdf',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                beforeSend: function () {
+                    // Start the timer
+                    var startTime = Date.now();
+                    intervalId = setInterval(function () {
+                        var elapsedTime = Date.now() - startTime;
+                        var formattedTime = formatTime(elapsedTime);
+                        $('#elapsed-time-container').text('Elapsed Time: ' + formattedTime);
+                    }, 1000);
+                },
+                success: function (data) {
+                    clearInterval(intervalId);
+                    // Load PDF file in iframe within the div
+                    $('#pdf-container').html('<iframe src="' + data.filePath + '" width="100%" height="100%"></iframe>');
+
+                    // Scroll to the div-container
+                    $('html, body').animate({
+                        scrollTop: $('#pdf-container').offset().top
+                    }, 1000); // Adjust scroll speed as needed
+                },
+                error: function (xhr, status, error) {
+                    $('#error-message').text(xhr.responseText);
+                }
+            });
+        });
+
+        // Function to format time in HH:mm:ss format
+        function formatTime(milliseconds) {
+            var seconds = Math.floor(milliseconds / 1000);
+            var hours = Math.floor(seconds / 3600);
+            seconds %= 3600;
+            var minutes = Math.floor(seconds / 60);
+            seconds %= 60;
+
+            return pad(hours) + ':' + pad(minutes) + ':' + pad(seconds);
+        }
+
+        // Function to add leading zero for single digit numbers
+        function pad(number) {
+            if (number < 10) {
+                return '0' + number;
+            }
+            return number;
+        }
+    </script>
+}
